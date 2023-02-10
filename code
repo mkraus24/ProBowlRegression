@@ -519,11 +519,12 @@ noprobowl[, ProBowler := 0]
 
 players <- noprobowl %>% full_join(ProBowl)
 
-# Perform multinomial regression ------------------------------------------
+# Perform logistic regression ------------------------------------------
 
-probowl_multinom <- multinom(ProBowler ~ Pos + G + GS + Cmp + PassAtt + PassYds + PassTD + PassInt + RushAtt + RushYds + RushTD + Rec + RecYds + RecTD + DefInt + Sacks + Solo, data = players)
-probowl_step <- step(probowl_multinom, trace = F, direction = 'both')
+probowl_glm <- glm(ProBowler ~ Pos + G + GS + Cmp + PassAtt + PassYds + PassTD + PassInt + RushAtt + RushYds + RushTD + Rec + RecYds + RecTD + DefInt + Sacks + Solo, family = binomial(link = 'logit'), data = players)
+probowl_step <- step(probowl_glm, trace = F, direction = 'both')
 
 # Assign probabilities to data set ----------------------------------------
 
-players[, probowl_prob := round(predict(probowl_step, players, 'probs'), 3)]
+players[, probowl_prob := plogis(predict(probowl_step, players))]
+players[, probowl_prob := round(probowl_prob, 3)]
