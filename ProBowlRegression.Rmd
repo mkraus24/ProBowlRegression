@@ -1,0 +1,568 @@
+---
+title: "Pro Bowl: Finding Snubs Using Regression"
+output: html_document
+author: 'Matthew Kraus'
+---
+## Introduction
+
+It's that time of year again. The Pro Bowl (Games) rosters have been announced and the NFL world was once again quick to judge who should and should not have been selected. Like many others, I saw a few players on the roster that, in my opinion, did not deserve to make the trip to Vegas. However, as I delve deeper into my sport analytics journey, I wanted to determine whether or not each player should have made the final roster according to the statistics each player recorded.
+
+
+## Notes
+
+1. Data includes Pro Bowl selections from 2012 to 2022.
+2. Positions such as offensive linemen and special teams players are not included.
+3. Only the original Pro Bowl selections are used. Replacements are labeled as not selected.
+4. All data is from Pro Football Reference.
+```{r packages, echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
+x <- c("tidyverse", "data.table", "car", "nnet")
+lapply(x, library, character.only = TRUE)
+```
+
+```{r code, echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
+
+# Import data ---------------------------------------------------
+
+ProBowl2012 <- as.data.table(read.csv('ProBowlRegression/2012ProBowl.csv'))
+ProBowl2013 <- as.data.table(read.csv('ProBowlRegression/2013ProBowl.csv'))
+ProBowl2014 <- as.data.table(read.csv('ProBowlRegression/2014ProBowl.csv'))
+ProBowl2015 <- as.data.table(read.csv('ProBowlRegression/2015ProBowl.csv'))
+ProBowl2016 <- as.data.table(read.csv('ProBowlRegression/2016ProBowl.csv'))
+ProBowl2017 <- as.data.table(read.csv('ProBowlRegression/2017ProBowl.csv'))
+ProBowl2018 <- as.data.table(read.csv('ProBowlRegression/2018ProBowl.csv'))
+ProBowl2019 <- as.data.table(read.csv('ProBowlRegression/2019ProBowl.csv'))
+ProBowl2020 <- as.data.table(read.csv('ProBowlRegression/2020ProBowl.csv'))
+ProBowl2021 <- as.data.table(read.csv('ProBowlRegression/2021ProBowl.csv'))
+ProBowl2022 <- as.data.table(read.csv('ProBowlRegression/2022ProBowl.csv'))
+
+Pass2012 <- as.data.table(read.csv('ProBowlRegression/2012Pass.csv'))
+Pass2013 <- as.data.table(read.csv('ProBowlRegression/2013Pass.csv'))
+Pass2014 <- as.data.table(read.csv('ProBowlRegression/2014Pass.csv'))
+Pass2015 <- as.data.table(read.csv('ProBowlRegression/2015Pass.csv'))
+Pass2016 <- as.data.table(read.csv('ProBowlRegression/2016Pass.csv'))
+Pass2017 <- as.data.table(read.csv('ProBowlRegression/2017Pass.csv'))
+Pass2018 <- as.data.table(read.csv('ProBowlRegression/2018Pass.csv'))
+Pass2019 <- as.data.table(read.csv('ProBowlRegression/2019Pass.csv'))
+Pass2020 <- as.data.table(read.csv('ProBowlRegression/2020Pass.csv'))
+Pass2021 <- as.data.table(read.csv('ProBowlRegression/2021Pass.csv'))
+Pass2022 <- as.data.table(read.csv('ProBowlRegression/2022Pass.csv'))
+Rush2012 <- as.data.table(read.csv('ProBowlRegression/2012Rush.csv'))
+Rush2013 <- as.data.table(read.csv('ProBowlRegression/2013Rush.csv'))
+Rush2014 <- as.data.table(read.csv('ProBowlRegression/2014Rush.csv'))
+Rush2015 <- as.data.table(read.csv('ProBowlRegression/2015Rush.csv'))
+Rush2016 <- as.data.table(read.csv('ProBowlRegression/2016Rush.csv'))
+Rush2017 <- as.data.table(read.csv('ProBowlRegression/2017Rush.csv'))
+Rush2018 <- as.data.table(read.csv('ProBowlRegression/2018Rush.csv'))
+Rush2019 <- as.data.table(read.csv('ProBowlRegression/2019Rush.csv'))
+Rush2020 <- as.data.table(read.csv('ProBowlRegression/2020Rush.csv'))
+Rush2021 <- as.data.table(read.csv('ProBowlRegression/2021Rush.csv'))
+Rush2022 <- as.data.table(read.csv('ProBowlRegression/2022Rush.csv'))
+Rec2012 <- as.data.table(read.csv('ProBowlRegression/2012Rec.csv'))
+Rec2013 <- as.data.table(read.csv('ProBowlRegression/2013Rec.csv'))
+Rec2014 <- as.data.table(read.csv('ProBowlRegression/2014Rec.csv'))
+Rec2015 <- as.data.table(read.csv('ProBowlRegression/2015Rec.csv'))
+Rec2016 <- as.data.table(read.csv('ProBowlRegression/2016Rec.csv'))
+Rec2017 <- as.data.table(read.csv('ProBowlRegression/2017Rec.csv'))
+Rec2018 <- as.data.table(read.csv('ProBowlRegression/2018Rec.csv'))
+Rec2019 <- as.data.table(read.csv('ProBowlRegression/2019Rec.csv'))
+Rec2020 <- as.data.table(read.csv('ProBowlRegression/2020Rec.csv'))
+Rec2021 <- as.data.table(read.csv('ProBowlRegression/2021Rec.csv'))
+Rec2022 <- as.data.table(read.csv('ProBowlRegression/2022Rec.csv'))
+Def2012 <- as.data.table(read.csv('ProBowlRegression/2012Def.csv'))
+Def2013 <- as.data.table(read.csv('ProBowlRegression/2013Def.csv'))
+Def2014 <- as.data.table(read.csv('ProBowlRegression/2014Def.csv'))
+Def2015 <- as.data.table(read.csv('ProBowlRegression/2015Def.csv'))
+Def2016 <- as.data.table(read.csv('ProBowlRegression/2016Def.csv'))
+Def2017 <- as.data.table(read.csv('ProBowlRegression/2017Def.csv'))
+Def2018 <- as.data.table(read.csv('ProBowlRegression/2018Def.csv'))
+Def2019 <- as.data.table(read.csv('ProBowlRegression/2019Def.csv'))
+Def2020 <- as.data.table(read.csv('ProBowlRegression/2020Def.csv'))
+Def2021 <- as.data.table(read.csv('ProBowlRegression/2021Def.csv'))
+Def2022 <- as.data.table(read.csv('ProBowlRegression/2022Def.csv'))
+
+Pass2012[, Year := 2012]
+Pass2013[, Year := 2013]
+Pass2014[, Year := 2014]
+Pass2015[, Year := 2015]
+Pass2016[, Year := 2016]
+Pass2017[, Year := 2017]
+Pass2018[, Year := 2018]
+Pass2019[, Year := 2019]
+Pass2020[, Year := 2020]
+Pass2021[, Year := 2021]
+Pass2022[, Year := 2022]
+Rush2012[, Year := 2012]
+Rush2013[, Year := 2013]
+Rush2014[, Year := 2014]
+Rush2015[, Year := 2015]
+Rush2016[, Year := 2016]
+Rush2017[, Year := 2017]
+Rush2018[, Year := 2018]
+Rush2019[, Year := 2019]
+Rush2020[, Year := 2020]
+Rush2021[, Year := 2021]
+Rush2022[, Year := 2022]
+Rec2012[, Year := 2012]
+Rec2013[, Year := 2013]
+Rec2014[, Year := 2014]
+Rec2015[, Year := 2015]
+Rec2016[, Year := 2016]
+Rec2017[, Year := 2017]
+Rec2018[, Year := 2018]
+Rec2019[, Year := 2019]
+Rec2020[, Year := 2020]
+Rec2021[, Year := 2021]
+Rec2022[, Year := 2022]
+Def2012[, Year := 2012]
+Def2013[, Year := 2013]
+Def2014[, Year := 2014]
+Def2015[, Year := 2015]
+Def2016[, Year := 2016]
+Def2017[, Year := 2017]
+Def2018[, Year := 2018]
+Def2019[, Year := 2019]
+Def2020[, Year := 2020]
+Def2021[, Year := 2021]
+Def2022[, Year := 2022]
+
+# Combine each data set and clean data -------------------------------------
+
+Pass <- rbind(Pass2012, Pass2013, Pass2014, Pass2015, Pass2016, Pass2017, Pass2018, Pass2019, Pass2020, Pass2021, Pass2022)
+Rush <- rbind(Rush2012, Rush2013, Rush2014, Rush2015, Rush2016, Rush2017, Rush2018, Rush2019, Rush2020, Rush2021, Rush2022)
+Rec <- rbind(Rec2012, Rec2013, Rec2014, Rec2015, Rec2016, Rec2017, Rec2018, Rec2019, Rec2020, Rec2021, Rec2022)
+Def <- rbind(Def2012, Def2013, Def2014, Def2015, Def2016, Def2017, Def2018, Def2019, Def2020, Def2021, Def2022)
+
+colnames(Pass) <- c('Player', 'Tm', 'Pos', 'G', 'GS', 'Cmp', 'PassAtt', 'PassYds', 'PassTD', 'PassInt', 'Year')
+colnames(Rush) <- c('Player', 'Tm', 'Pos', 'G', 'GS', 'RushAtt', 'RushYds', 'RushTD', 'Year')
+colnames(Rec) <- c('Player', 'Tm', 'Pos', 'G', 'GS', 'Rec', 'RecYds', 'RecTD', 'Year')
+colnames(Def) <- c('Player', 'Tm', 'Pos', 'G', 'GS', 'DefInt', 'Sacks', 'Solo', 'Year')
+
+Pass$Player <- gsub('+', '', Pass$Player, fixed = T)
+Pass$Player <- gsub('*', '', Pass$Player, fixed = T)
+Rush$Player <- gsub('+', '', Rush$Player, fixed = T)
+Rush$Player <- gsub('*', '', Rush$Player, fixed = T)
+Rec$Player <- gsub('+', '', Rec$Player, fixed = T)
+Rec$Player <- gsub('*', '', Rec$Player, fixed = T)
+Def$Player <- gsub('+', '', Def$Player, fixed = T)
+Def$Player <- gsub('*', '', Def$Player, fixed = T)
+
+Pass <- Pass[!(Pos %in% c('C', 'FB', 'FB/RB', 'G', 'K', 'LG', 'LT', 'OL', 'P', 'RG', 'RT', 'RT/LG', 'T', ''))]
+Pass[Player == 'Quandre Diggs' & Year == 2017]$Pos <- 'CB'
+Pass[Player == 'Taysom Hill']$Pos <- 'TE'
+Pass[Pos == 'WR/QB']$Pos <- 'WR'
+Pass[Player == 'Minkah Fitzpatrick']$Pos <- 'S'
+Pass[Pos == 'DB/FS']$Pos <- 'S'
+Pass[Player == 'Devin McCourty']$Pos <- 'S'
+Pass[Pos %in% c('CB/DB', 'CB/RCB', 'DB/LCB', 'DB/LCB', 'DB/RCB', 'DB/RLB', 'DB/SS', 'LCB', 'LCB/FS', 'LCB/RCB', 'RCB', 'RCB/DB', 'RCB/FS', 'RCB/LCB', 'RCB/LCB/DB', 'RCB/SS')]$Pos <- 'CB'
+Pass[Pos %in% c('DE/DT', 'DE/LDE', 'DE/LOLB', 'DE/RDE', 'DE/ROLB', 'LDE', 'LDE/LDT', 'LDE/NT', 'LDE/RDE', 'RDE', 'RDE/LDE', 'RDE/LDT', 'RDE/LOLB', 'RDE/NT')]$Pos <- 'DE'
+Pass <- Pass[!(Pos == 'DT/FB')]
+Pass[Pos %in% c('DT/NT', 'DT/RDE', 'LDT', 'LDT/LDE', 'LDT/RDT', 'NT', 'NT/RDT', 'RDT', 'RDT/LDE', 'RDT/LDT', 'RDT/RDE')]$Pos <- 'DT'
+Pass[Pos == 'FS/RCB']$Pos <- 'CB'
+Pass[Pos == 'SS/LCB']$Pos <- 'CB'
+Pass[Pos %in% c('FS', 'FS/SS', 'SS', 'SS/FS', 'SS/RLB')]$Pos <- 'S'
+Pass[Pos == 'LB/LDE']$Pos <- 'DE'
+Pass[Player == 'Robert Quinn']$Pos <- 'DE'
+Pass[Pos %in% c('LLB/MLB', 'LLB/RLB', 'LLB/ROLB', 'LOLB/RDE', 'LOLB/ROL', 'RILB/LIL', 'RLB/LDE', 'RLB/LLB', 'RLB/LLB', 'RLB/MLB', 'ROLB/LIL', 'ROLB/LOL', 'ROLB/RIL')]$Pos <- 'LB'
+Pass[Pos == 'LB/ROLB']$Pos <- 'LB'
+Pass[Player == 'Jeremy Chinn']$Pos <- 'S'
+Pass[Pos %in% c('LB/LILB', 'LB/MLB', 'LB/OLB', 'LB/RILB', 'LB/RLB', 'LILB/RIL', 'MLB/RILB', 'MLB/RLB')]$Pos <- 'LB'
+Pass[Pos %in% c('LILB', 'LLB', 'MLB', 'RILB', 'RLB')]$Pos <- 'LB'
+Pass[Pos %in% c('LOLB', 'OLB', 'ROLB')]$Pos <- 'LB'
+Pass[Pos == 'DB']$Pos <- 'CB'
+Pass[Player == 'Morgan Fox' & Year == 2020]$Pos <- 'DE'
+Pass[Player == 'Abdullah Anderson' & Year == 2022]$Pos <- 'DT'
+Pass[Player == 'Mike Pennel' & Year == 2022]$Pos <- 'DT'
+Pass[Player == 'Alim McNeill' & Year == 2022]$Pos <- 'DT'
+Pass[Player == 'Trevis Gipson' & Year == 2022]$Pos <- 'DE'
+Pass[Player == 'Jonathan Bullard' & Year == 2022]$Pos <- 'DT'
+Pass[Player == 'Denico Autry' & Year == 2022]$Pos <- 'DE'
+Pass[Player == 'Lawrence Guy' & Year == 2022]$Pos <- 'DT'
+Pass[Player == 'John Cominsky' & Year == 2022]$Pos <- 'DE'
+Pass[Player == 'Dominique Robinson' & Year == 2022]$Pos <- 'DE'
+Pass[Player == 'Rakeem Nunez-Roches' & Year == 2022]$Pos <- 'DT'
+Pass[Player == 'Dalvin Tomlinson' & Year == 2022]$Pos <- 'DT'
+Pass[Player == 'DeShawn Williams' & Year == 2022]$Pos <- 'DT'
+Pass[Player == 'Mike Purcell' & Year == 2022]$Pos <- 'DT'
+Pass[Player == 'Jerry Hughes' & Year == 2022]$Pos <- 'DE'
+Pass[Player == 'Isaiah Buggs' & Year == 2022]$Pos <- 'DT'
+Pass[Player == 'DeMarcus Walker' & Year == 2022]$Pos <- 'DE'
+Pass[Player == 'Dean Lowry' & Year == 2022]$Pos <- 'DT'
+Pass[Player == 'William Gholston' & Year == 2022]$Pos <- 'DT'
+Pass[Player == 'Morgan Fox' & Year == 2022]$Pos <- 'DT'
+Pass[Player == 'Leonard Williams' & Year == 2022]$Pos <- 'DT'
+Pass[Player == 'Rasheem Green' & Year == 2022]$Pos <- 'DE'
+Pass[Player == 'Maliek Collins' & Year == 2022]$Pos <- 'DT'
+Pass[Player == 'Kenny Clark' & Year == 2022]$Pos <- 'DT'
+Pass[Player == 'Roy Robertson-Harris' & Year == 2022]$Pos <- 'DT'
+Pass[Player == 'Harrison Phillips' & Year == 2022]$Pos <- 'DT'
+Pass[Player == 'Justin Jones' & Year == 2022]$Pos <- 'DT'
+Pass[Player == 'Grady Jarrett' & Year == 2022]$Pos <- 'DT'
+Pass[Player == 'Ogbonnia Okoronkwo' & Year == 2022]$Pos <- 'DE'
+Pass[Player == 'Deatrich Wise Jr.' & Year == 2022]$Pos <- 'DE'
+Pass[Player == 'Aidan Hutchinson' & Year == 2022]$Pos <- 'DE'
+Pass[Player == 'Dexter Lawrence' & Year == 2022]$Pos <- 'DT'
+Pass[Player == 'Roy Lopez' & Year == 2022]$Pos <- 'DT'
+
+Rush <- Rush[!(Pos %in% c('C', 'FB', 'FB/RB', 'G', 'K', 'LG', 'LT', 'OL', 'P', 'RG', 'RT', 'RT/LG', 'T', ''))]
+Rush[Player == 'Quandre Diggs' & Year == 2017]$Pos <- 'CB'
+Rush[Player == 'Taysom Hill']$Pos <- 'TE'
+Rush[Pos == 'WR/QB']$Pos <- 'WR'
+Rush[Player == 'Minkah Fitzpatrick']$Pos <- 'S'
+Rush[Pos == 'DB/FS']$Pos <- 'S'
+Rush[Player == 'Devin McCourty']$Pos <- 'S'
+Rush[Pos %in% c('CB/DB', 'CB/RCB', 'DB/LCB', 'DB/LCB', 'DB/RCB', 'DB/RLB', 'DB/SS', 'LCB', 'LCB/FS', 'LCB/RCB', 'RCB', 'RCB/DB', 'RCB/FS', 'RCB/LCB', 'RCB/LCB/DB', 'RCB/SS')]$Pos <- 'CB'
+Rush[Pos %in% c('DE/DT', 'DE/LDE', 'DE/LOLB', 'DE/RDE', 'DE/ROLB', 'LDE', 'LDE/LDT', 'LDE/NT', 'LDE/RDE', 'RDE', 'RDE/LDE', 'RDE/LDT', 'RDE/LOLB', 'RDE/NT')]$Pos <- 'DE'
+Rush <- Rush[!(Pos == 'DT/FB')]
+Rush[Pos %in% c('DT/NT', 'DT/RDE', 'LDT', 'LDT/LDE', 'LDT/RDT', 'NT', 'NT/RDT', 'RDT', 'RDT/LDE', 'RDT/LDT', 'RDT/RDE')]$Pos <- 'DT'
+Rush[Pos == 'FS/RCB']$Pos <- 'CB'
+Rush[Pos == 'SS/LCB']$Pos <- 'CB'
+Rush[Pos %in% c('FS', 'FS/SS', 'SS', 'SS/FS', 'SS/RLB')]$Pos <- 'S'
+Rush[Pos == 'LB/LDE']$Pos <- 'DE'
+Rush[Player == 'Robert Quinn']$Pos <- 'DE'
+Rush[Pos %in% c('LLB/MLB', 'LLB/RLB', 'LLB/ROLB', 'LOLB/RDE', 'LOLB/ROL', 'RILB/LIL', 'RLB/LDE', 'RLB/LLB', 'RLB/LLB', 'RLB/MLB', 'ROLB/LIL', 'ROLB/LOL', 'ROLB/RIL')]$Pos <- 'LB'
+Rush[Pos == 'LB/ROLB']$Pos <- 'LB'
+Rush[Player == 'Jeremy Chinn']$Pos <- 'S'
+Rush[Pos %in% c('LB/LILB', 'LB/MLB', 'LB/OLB', 'LB/RILB', 'LB/RLB', 'LILB/RIL', 'MLB/RILB', 'MLB/RLB')]$Pos <- 'LB'
+Rush[Pos %in% c('LILB', 'LLB', 'MLB', 'RILB', 'RLB')]$Pos <- 'LB'
+Rush[Pos %in% c('LOLB', 'OLB', 'ROLB')]$Pos <- 'LB'
+Rush[Pos == 'DB']$Pos <- 'CB'
+Rush[Player == 'Morgan Fox' & Year == 2020]$Pos <- 'DE'
+Rush[Player == 'Abdullah Anderson' & Year == 2022]$Pos <- 'DT'
+Rush[Player == 'Mike Pennel' & Year == 2022]$Pos <- 'DT'
+Rush[Player == 'Alim McNeill' & Year == 2022]$Pos <- 'DT'
+Rush[Player == 'Trevis Gipson' & Year == 2022]$Pos <- 'DE'
+Rush[Player == 'Jonathan Bullard' & Year == 2022]$Pos <- 'DT'
+Rush[Player == 'Denico Autry' & Year == 2022]$Pos <- 'DE'
+Rush[Player == 'Lawrence Guy' & Year == 2022]$Pos <- 'DT'
+Rush[Player == 'John Cominsky' & Year == 2022]$Pos <- 'DE'
+Rush[Player == 'Dominique Robinson' & Year == 2022]$Pos <- 'DE'
+Rush[Player == 'Rakeem Nunez-Roches' & Year == 2022]$Pos <- 'DT'
+Rush[Player == 'Dalvin Tomlinson' & Year == 2022]$Pos <- 'DT'
+Rush[Player == 'DeShawn Williams' & Year == 2022]$Pos <- 'DT'
+Rush[Player == 'Mike Purcell' & Year == 2022]$Pos <- 'DT'
+Rush[Player == 'Jerry Hughes' & Year == 2022]$Pos <- 'DE'
+Rush[Player == 'Isaiah Buggs' & Year == 2022]$Pos <- 'DT'
+Rush[Player == 'DeMarcus Walker' & Year == 2022]$Pos <- 'DE'
+Rush[Player == 'Dean Lowry' & Year == 2022]$Pos <- 'DT'
+Rush[Player == 'William Gholston' & Year == 2022]$Pos <- 'DT'
+Rush[Player == 'Morgan Fox' & Year == 2022]$Pos <- 'DT'
+Rush[Player == 'Leonard Williams' & Year == 2022]$Pos <- 'DT'
+Rush[Player == 'Rasheem Green' & Year == 2022]$Pos <- 'DE'
+Rush[Player == 'Maliek Collins' & Year == 2022]$Pos <- 'DT'
+Rush[Player == 'Kenny Clark' & Year == 2022]$Pos <- 'DT'
+Rush[Player == 'Roy Robertson-Harris' & Year == 2022]$Pos <- 'DT'
+Rush[Player == 'Harrison Phillips' & Year == 2022]$Pos <- 'DT'
+Rush[Player == 'Justin Jones' & Year == 2022]$Pos <- 'DT'
+Rush[Player == 'Grady Jarrett' & Year == 2022]$Pos <- 'DT'
+Rush[Player == 'Ogbonnia Okoronkwo' & Year == 2022]$Pos <- 'DE'
+Rush[Player == 'Deatrich Wise Jr.' & Year == 2022]$Pos <- 'DE'
+Rush[Player == 'Aidan Hutchinson' & Year == 2022]$Pos <- 'DE'
+Rush[Player == 'Dexter Lawrence' & Year == 2022]$Pos <- 'DT'
+Rush[Player == 'Roy Lopez' & Year == 2022]$Pos <- 'DT'
+
+Rec <- Rec[!(Pos %in% c('C', 'FB', 'FB/RB', 'G', 'K', 'LG', 'LT', 'OL', 'P', 'RG', 'RT', 'RT/LG', 'T', ''))]
+Rec[Player == 'Quandre Diggs' & Year == 2017]$Pos <- 'CB'
+Rec[Player == 'Taysom Hill']$Pos <- 'TE'
+Rec[Pos == 'WR/QB']$Pos <- 'WR'
+Rec[Player == 'Minkah Fitzpatrick']$Pos <- 'S'
+Rec[Pos == 'DB/FS']$Pos <- 'S'
+Rec[Player == 'Devin McCourty']$Pos <- 'S'
+Rec[Pos %in% c('CB/DB', 'CB/RCB', 'DB/LCB', 'DB/LCB', 'DB/RCB', 'DB/RLB', 'DB/SS', 'LCB', 'LCB/FS', 'LCB/RCB', 'RCB', 'RCB/DB', 'RCB/FS', 'RCB/LCB', 'RCB/LCB/DB', 'RCB/SS')]$Pos <- 'CB'
+Rec[Pos %in% c('DE/DT', 'DE/LDE', 'DE/LOLB', 'DE/RDE', 'DE/ROLB', 'LDE', 'LDE/LDT', 'LDE/NT', 'LDE/RDE', 'RDE', 'RDE/LDE', 'RDE/LDT', 'RDE/LOLB', 'RDE/NT')]$Pos <- 'DE'
+Rec <- Rec[!(Pos == 'DT/FB')]
+Rec[Pos %in% c('DT/NT', 'DT/RDE', 'LDT', 'LDT/LDE', 'LDT/RDT', 'NT', 'NT/RDT', 'RDT', 'RDT/LDE', 'RDT/LDT', 'RDT/RDE')]$Pos <- 'DT'
+Rec[Pos == 'FS/RCB']$Pos <- 'CB'
+Rec[Pos == 'SS/LCB']$Pos <- 'CB'
+Rec[Pos %in% c('FS', 'FS/SS', 'SS', 'SS/FS', 'SS/RLB')]$Pos <- 'S'
+Rec[Pos == 'LB/LDE']$Pos <- 'DE'
+Rec[Player == 'Robert Quinn']$Pos <- 'DE'
+Rec[Pos %in% c('LLB/MLB', 'LLB/RLB', 'LLB/ROLB', 'LOLB/RDE', 'LOLB/ROL', 'RILB/LIL', 'RLB/LDE', 'RLB/LLB', 'RLB/LLB', 'RLB/MLB', 'ROLB/LIL', 'ROLB/LOL', 'ROLB/RIL')]$Pos <- 'LB'
+Rec[Pos == 'LB/ROLB']$Pos <- 'LB'
+Rec[Player == 'Jeremy Chinn']$Pos <- 'S'
+Rec[Pos %in% c('LB/LILB', 'LB/MLB', 'LB/OLB', 'LB/RILB', 'LB/RLB', 'LILB/RIL', 'MLB/RILB', 'MLB/RLB')]$Pos <- 'LB'
+Rec[Pos %in% c('LILB', 'LLB', 'MLB', 'RILB', 'RLB')]$Pos <- 'LB'
+Rec[Pos %in% c('LOLB', 'OLB', 'ROLB')]$Pos <- 'LB'
+Rec[Pos == 'DB']$Pos <- 'CB'
+Rec[Player == 'Morgan Fox' & Year == 2020]$Pos <- 'DE'
+Rec[Player == 'Abdullah Anderson' & Year == 2022]$Pos <- 'DT'
+Rec[Player == 'Mike Pennel' & Year == 2022]$Pos <- 'DT'
+Rec[Player == 'Alim McNeill' & Year == 2022]$Pos <- 'DT'
+Rec[Player == 'Trevis Gipson' & Year == 2022]$Pos <- 'DE'
+Rec[Player == 'Jonathan Bullard' & Year == 2022]$Pos <- 'DT'
+Rec[Player == 'Denico Autry' & Year == 2022]$Pos <- 'DE'
+Rec[Player == 'Lawrence Guy' & Year == 2022]$Pos <- 'DT'
+Rec[Player == 'John Cominsky' & Year == 2022]$Pos <- 'DE'
+Rec[Player == 'Dominique Robinson' & Year == 2022]$Pos <- 'DE'
+Rec[Player == 'Rakeem Nunez-Roches' & Year == 2022]$Pos <- 'DT'
+Rec[Player == 'Dalvin Tomlinson' & Year == 2022]$Pos <- 'DT'
+Rec[Player == 'DeShawn Williams' & Year == 2022]$Pos <- 'DT'
+Rec[Player == 'Mike Purcell' & Year == 2022]$Pos <- 'DT'
+Rec[Player == 'Jerry Hughes' & Year == 2022]$Pos <- 'DE'
+Rec[Player == 'Isaiah Buggs' & Year == 2022]$Pos <- 'DT'
+Rec[Player == 'DeMarcus Walker' & Year == 2022]$Pos <- 'DE'
+Rec[Player == 'Dean Lowry' & Year == 2022]$Pos <- 'DT'
+Rec[Player == 'William Gholston' & Year == 2022]$Pos <- 'DT'
+Rec[Player == 'Morgan Fox' & Year == 2022]$Pos <- 'DT'
+Rec[Player == 'Leonard Williams' & Year == 2022]$Pos <- 'DT'
+Rec[Player == 'Rasheem Green' & Year == 2022]$Pos <- 'DE'
+Rec[Player == 'Maliek Collins' & Year == 2022]$Pos <- 'DT'
+Rec[Player == 'Kenny Clark' & Year == 2022]$Pos <- 'DT'
+Rec[Player == 'Roy Robertson-Harris' & Year == 2022]$Pos <- 'DT'
+Rec[Player == 'Harrison Phillips' & Year == 2022]$Pos <- 'DT'
+Rec[Player == 'Justin Jones' & Year == 2022]$Pos <- 'DT'
+Rec[Player == 'Grady Jarrett' & Year == 2022]$Pos <- 'DT'
+Rec[Player == 'Ogbonnia Okoronkwo' & Year == 2022]$Pos <- 'DE'
+Rec[Player == 'Deatrich Wise Jr.' & Year == 2022]$Pos <- 'DE'
+Rec[Player == 'Aidan Hutchinson' & Year == 2022]$Pos <- 'DE'
+Rec[Player == 'Dexter Lawrence' & Year == 2022]$Pos <- 'DT'
+Rec[Player == 'Roy Lopez' & Year == 2022]$Pos <- 'DT'
+
+Def <- Def[!(Pos %in% c('C', 'FB', 'FB/RB', 'G', 'K', 'LG', 'LT', 'OL', 'P', 'RG', 'RT', 'RT/LG', 'T', ''))]
+Def[Player == 'Quandre Diggs' & Year == 2017]$Pos <- 'CB'
+Def[Player == 'Taysom Hill']$Pos <- 'TE'
+Def[Pos == 'WR/QB']$Pos <- 'WR'
+Def[Player == 'Minkah Fitzpatrick']$Pos <- 'S'
+Def[Pos == 'DB/FS']$Pos <- 'S'
+Def[Player == 'Devin McCourty']$Pos <- 'S'
+Def[Pos %in% c('CB/DB', 'CB/RCB', 'DB/LCB', 'DB/LCB', 'DB/RCB', 'DB/RLB', 'DB/SS', 'LCB', 'LCB/FS', 'LCB/RCB', 'RCB', 'RCB/DB', 'RCB/FS', 'RCB/LCB', 'RCB/LCB/DB', 'RCB/SS')]$Pos <- 'CB'
+Def[Pos %in% c('DE/DT', 'DE/LDE', 'DE/LOLB', 'DE/RDE', 'DE/ROLB', 'LDE', 'LDE/LDT', 'LDE/NT', 'LDE/RDE', 'RDE', 'RDE/LDE', 'RDE/LDT', 'RDE/LOLB', 'RDE/NT')]$Pos <- 'DE'
+Def <- Def[!(Pos == 'DT/FB')]
+Def[Pos %in% c('DT/NT', 'DT/RDE', 'LDT', 'LDT/LDE', 'LDT/RDT', 'NT', 'NT/RDT', 'RDT', 'RDT/LDE', 'RDT/LDT', 'RDT/RDE')]$Pos <- 'DT'
+Def[Pos == 'FS/RCB']$Pos <- 'CB'
+Def[Pos == 'SS/LCB']$Pos <- 'CB'
+Def[Pos %in% c('FS', 'FS/SS', 'SS', 'SS/FS', 'SS/RLB')]$Pos <- 'S'
+Def[Pos == 'LB/LDE']$Pos <- 'DE'
+Def[Player == 'Robert Quinn']$Pos <- 'DE'
+Def[Pos %in% c('LLB/MLB', 'LLB/RLB', 'LLB/ROLB', 'LOLB/RDE', 'LOLB/ROL', 'RILB/LIL', 'RLB/LDE', 'RLB/LLB', 'RLB/LLB', 'RLB/MLB', 'ROLB/LIL', 'ROLB/LOL', 'ROLB/RIL')]$Pos <- 'LB'
+Def[Pos == 'LB/ROLB']$Pos <- 'LB'
+Def[Player == 'Jeremy Chinn']$Pos <- 'S'
+Def[Pos %in% c('LB/LILB', 'LB/MLB', 'LB/OLB', 'LB/RILB', 'LB/RLB', 'LILB/RIL', 'MLB/RILB', 'MLB/RLB')]$Pos <- 'LB'
+Def[Pos %in% c('LILB', 'LLB', 'MLB', 'RILB', 'RLB')]$Pos <- 'LB'
+Def[Pos %in% c('LOLB', 'OLB', 'ROLB')]$Pos <- 'LB'
+Def[Pos == 'DB']$Pos <- 'CB'
+Def[Player == 'Morgan Fox' & Year == 2020]$Pos <- 'DE'
+Def[Player == 'Abdullah Anderson' & Year == 2022]$Pos <- 'DT'
+Def[Player == 'Mike Pennel' & Year == 2022]$Pos <- 'DT'
+Def[Player == 'Alim McNeill' & Year == 2022]$Pos <- 'DT'
+Def[Player == 'Trevis Gipson' & Year == 2022]$Pos <- 'DE'
+Def[Player == 'Jonathan Bullard' & Year == 2022]$Pos <- 'DT'
+Def[Player == 'Denico Autry' & Year == 2022]$Pos <- 'DE'
+Def[Player == 'Lawrence Guy' & Year == 2022]$Pos <- 'DT'
+Def[Player == 'John Cominsky' & Year == 2022]$Pos <- 'DE'
+Def[Player == 'Dominique Robinson' & Year == 2022]$Pos <- 'DE'
+Def[Player == 'Rakeem Nunez-Roches' & Year == 2022]$Pos <- 'DT'
+Def[Player == 'Dalvin Tomlinson' & Year == 2022]$Pos <- 'DT'
+Def[Player == 'DeShawn Williams' & Year == 2022]$Pos <- 'DT'
+Def[Player == 'Mike Purcell' & Year == 2022]$Pos <- 'DT'
+Def[Player == 'Jerry Hughes' & Year == 2022]$Pos <- 'DE'
+Def[Player == 'Isaiah Buggs' & Year == 2022]$Pos <- 'DT'
+Def[Player == 'DeMarcus Walker' & Year == 2022]$Pos <- 'DE'
+Def[Player == 'Dean Lowry' & Year == 2022]$Pos <- 'DT'
+Def[Player == 'William Gholston' & Year == 2022]$Pos <- 'DT'
+Def[Player == 'Morgan Fox' & Year == 2022]$Pos <- 'DT'
+Def[Player == 'Leonard Williams' & Year == 2022]$Pos <- 'DT'
+Def[Player == 'Rasheem Green' & Year == 2022]$Pos <- 'DE'
+Def[Player == 'Maliek Collins' & Year == 2022]$Pos <- 'DT'
+Def[Player == 'Kenny Clark' & Year == 2022]$Pos <- 'DT'
+Def[Player == 'Roy Robertson-Harris' & Year == 2022]$Pos <- 'DT'
+Def[Player == 'Harrison Phillips' & Year == 2022]$Pos <- 'DT'
+Def[Player == 'Justin Jones' & Year == 2022]$Pos <- 'DT'
+Def[Player == 'Grady Jarrett' & Year == 2022]$Pos <- 'DT'
+Def[Player == 'Ogbonnia Okoronkwo' & Year == 2022]$Pos <- 'DE'
+Def[Player == 'Deatrich Wise Jr.' & Year == 2022]$Pos <- 'DE'
+Def[Player == 'Aidan Hutchinson' & Year == 2022]$Pos <- 'DE'
+Def[Player == 'Dexter Lawrence' & Year == 2022]$Pos <- 'DT'
+Def[Player == 'Roy Lopez' & Year == 2022]$Pos <- 'DT'
+
+ProBowl2012 <- ProBowl2012 %>% filter(!(Pos %in% c('FB','T','G','C','KR','PR','ST','LS','K','P')))
+ProBowl2013 <- ProBowl2013 %>% filter(!(Pos %in% c('FB','T','G','C','KR','PR','ST','LS','K','P')))
+ProBowl2014 <- ProBowl2014 %>% filter(!(Pos %in% c('FB','T','G','C','KR','PR','ST','LS','K','P')))
+ProBowl2015 <- ProBowl2015 %>% filter(!(Pos %in% c('FB','T','G','C','KR','PR','ST','LS','K','P')))
+ProBowl2016 <- ProBowl2016 %>% filter(!(Pos %in% c('FB','T','G','C','KR','PR','ST','LS','K','P')))
+ProBowl2017 <- ProBowl2017 %>% filter(!(Pos %in% c('FB','T','G','C','KR','PR','ST','LS','K','P')))
+ProBowl2018 <- ProBowl2018 %>% filter(!(Pos %in% c('FB','T','G','C','KR','PR','ST','LS','K','P')))
+ProBowl2019 <- ProBowl2019 %>% filter(!(Pos %in% c('FB','T','G','C','KR','PR','ST','LS','K','P')))
+ProBowl2020 <- ProBowl2020 %>% filter(!(Pos %in% c('FB','T','G','C','KR','PR','ST','LS','K','P')))
+ProBowl2021 <- ProBowl2021 %>% filter(!(Pos %in% c('FB','T','G','C','KR','PR','ST','LS','K','P')))
+ProBowl2022 <- ProBowl2022 %>% filter(!(Pos %in% c('FB','T','G','C','KR','PR','ST','LS','K','P')))
+
+colnames(ProBowl2012) <- c('Pos','Player','Conf','Tm','Age','Yrs','G','GS','Cmp','PassAtt','PassYds','PassTD','PassInt','RushAtt','RushYds','RushTD','Rec','RecYds','RecTD','Solo','Sacks','DefInt')
+colnames(ProBowl2013) <- c('Pos','Player','Conf','Tm','Age','Yrs','G','GS','Cmp','PassAtt','PassYds','PassTD','PassInt','RushAtt','RushYds','RushTD','Rec','RecYds','RecTD','Solo','Sacks','DefInt')
+colnames(ProBowl2014) <- c('Pos','Player','Conf','Tm','Age','Yrs','G','GS','Cmp','PassAtt','PassYds','PassTD','PassInt','RushAtt','RushYds','RushTD','Rec','RecYds','RecTD','Solo','Sacks','DefInt')
+colnames(ProBowl2015) <- c('Pos','Player','Conf','Tm','Age','Yrs','G','GS','Cmp','PassAtt','PassYds','PassTD','PassInt','RushAtt','RushYds','RushTD','Rec','RecYds','RecTD','Solo','Sacks','DefInt')
+colnames(ProBowl2016) <- c('Pos','Player','Conf','Tm','Age','Yrs','G','GS','Cmp','PassAtt','PassYds','PassTD','PassInt','RushAtt','RushYds','RushTD','Rec','RecYds','RecTD','Solo','Sacks','DefInt')
+colnames(ProBowl2017) <- c('Pos','Player','Conf','Tm','Age','Yrs','G','GS','Cmp','PassAtt','PassYds','PassTD','PassInt','RushAtt','RushYds','RushTD','Rec','RecYds','RecTD','Solo','Sacks','DefInt')
+colnames(ProBowl2018) <- c('Pos','Player','Conf','Tm','Age','Yrs','G','GS','Cmp','PassAtt','PassYds','PassTD','PassInt','RushAtt','RushYds','RushTD','Rec','RecYds','RecTD','Solo','Sacks','DefInt')
+colnames(ProBowl2019) <- c('Pos','Player','Conf','Tm','Age','Yrs','G','GS','Cmp','PassAtt','PassYds','PassTD','PassInt','RushAtt','RushYds','RushTD','Rec','RecYds','RecTD','Solo','Sacks','DefInt')
+colnames(ProBowl2020) <- c('Pos','Player','Conf','Tm','Age','Yrs','G','GS','Cmp','PassAtt','PassYds','PassTD','PassInt','RushAtt','RushYds','RushTD','Rec','RecYds','RecTD','Solo','Sacks','DefInt')
+colnames(ProBowl2021) <- c('Pos','Player','Conf','Tm','Age','Yrs','G','GS','Cmp','PassAtt','PassYds','PassTD','PassInt','RushAtt','RushYds','RushTD','Rec','RecYds','RecTD','Solo','Sacks','DefInt')
+colnames(ProBowl2022) <- c('Pos','Player','Conf','Tm','Age','Yrs','G','GS','Cmp','PassAtt','PassYds','PassTD','PassInt','RushAtt','RushYds','RushTD','Rec','RecYds','RecTD','Solo','Sacks','DefInt')
+
+ProBowl2012$Conf <- NULL
+ProBowl2012$Age <- NULL
+ProBowl2012$Yrs <- NULL
+ProBowl2013$Conf <- NULL
+ProBowl2013$Age <- NULL
+ProBowl2013$Yrs <- NULL
+ProBowl2014$Conf <- NULL
+ProBowl2014$Age <- NULL
+ProBowl2014$Yrs <- NULL
+ProBowl2015$Conf <- NULL
+ProBowl2015$Age <- NULL
+ProBowl2015$Yrs <- NULL
+ProBowl2016$Conf <- NULL
+ProBowl2016$Age <- NULL
+ProBowl2016$Yrs <- NULL
+ProBowl2017$Conf <- NULL
+ProBowl2017$Age <- NULL
+ProBowl2017$Yrs <- NULL
+ProBowl2018$Conf <- NULL
+ProBowl2018$Age <- NULL
+ProBowl2018$Yrs <- NULL
+ProBowl2019$Conf <- NULL
+ProBowl2019$Age <- NULL
+ProBowl2019$Yrs <- NULL
+ProBowl2020$Conf <- NULL
+ProBowl2020$Age <- NULL
+ProBowl2020$Yrs <- NULL
+ProBowl2021$Conf <- NULL
+ProBowl2021$Age <- NULL
+ProBowl2021$Yrs <- NULL
+ProBowl2022$Conf <- NULL
+ProBowl2022$Age <- NULL
+ProBowl2022$Yrs <- NULL
+
+ProBowl2012 <- ProBowl2012[!(grepl('+', ProBowl2012$Player, fixed = T))]
+ProBowl2013 <- ProBowl2013[!(grepl('+', ProBowl2013$Player, fixed = T))]
+ProBowl2014 <- ProBowl2014[!(grepl('+', ProBowl2014$Player, fixed = T))]
+ProBowl2015 <- ProBowl2015[!(grepl('+', ProBowl2015$Player, fixed = T))]
+ProBowl2016 <- ProBowl2016[!(grepl('+', ProBowl2016$Player, fixed = T))]
+ProBowl2017 <- ProBowl2017[!(grepl('+', ProBowl2017$Player, fixed = T))]
+ProBowl2018 <- ProBowl2018[!(grepl('+', ProBowl2018$Player, fixed = T))]
+ProBowl2019 <- ProBowl2019[!(grepl('+', ProBowl2019$Player, fixed = T))]
+ProBowl2020 <- ProBowl2020[!(grepl('+', ProBowl2020$Player, fixed = T))]
+ProBowl2021 <- ProBowl2021[!(grepl('+', ProBowl2021$Player, fixed = T))]
+ProBowl2022 <- ProBowl2022[!(grepl('+', ProBowl2022$Player, fixed = T))]
+
+ProBowl2012$Player <- ifelse(grepl('%', ProBowl2012$Player, fixed = T), gsub('%', '', ProBowl2012$Player), ProBowl2012$Player)
+ProBowl2013$Player <- ifelse(grepl('%', ProBowl2013$Player, fixed = T), gsub('%', '', ProBowl2013$Player), ProBowl2013$Player)
+ProBowl2014$Player <- ifelse(grepl('%', ProBowl2014$Player, fixed = T), gsub('%', '', ProBowl2014$Player), ProBowl2014$Player)
+ProBowl2015$Player <- ifelse(grepl('%', ProBowl2015$Player, fixed = T), gsub('%', '', ProBowl2015$Player), ProBowl2015$Player)
+ProBowl2016$Player <- ifelse(grepl('%', ProBowl2016$Player, fixed = T), gsub('%', '', ProBowl2016$Player), ProBowl2016$Player)
+ProBowl2017$Player <- ifelse(grepl('%', ProBowl2017$Player, fixed = T), gsub('%', '', ProBowl2017$Player), ProBowl2017$Player)
+ProBowl2018$Player <- ifelse(grepl('%', ProBowl2018$Player, fixed = T), gsub('%', '', ProBowl2018$Player), ProBowl2018$Player)
+ProBowl2019$Player <- ifelse(grepl('%', ProBowl2019$Player, fixed = T), gsub('%', '', ProBowl2019$Player), ProBowl2019$Player)
+ProBowl2020$Player <- ifelse(grepl('%', ProBowl2020$Player, fixed = T), gsub('%', '', ProBowl2020$Player), ProBowl2020$Player)
+ProBowl2021$Player <- ifelse(grepl('%', ProBowl2021$Player, fixed = T), gsub('%', '', ProBowl2021$Player), ProBowl2021$Player)
+ProBowl2022$Player <- ifelse(grepl('%', ProBowl2022$Player, fixed = T), gsub('%', '', ProBowl2022$Player), ProBowl2022$Player)
+
+ProBowl2012[, Year := 2012]
+ProBowl2013[, Year := 2013]
+ProBowl2014[, Year := 2014]
+ProBowl2015[, Year := 2015]
+ProBowl2016[, Year := 2016]
+ProBowl2017[, Year := 2017]
+ProBowl2018[, Year := 2018]
+ProBowl2019[, Year := 2019]
+ProBowl2020[, Year := 2020]
+ProBowl2021[, Year := 2021]
+ProBowl2022[, Year := 2022]
+
+ProBowl <- rbind(ProBowl2012, ProBowl2013, ProBowl2014, ProBowl2015, ProBowl2016, ProBowl2017, ProBowl2018, ProBowl2019, ProBowl2020, ProBowl2021, ProBowl2022)
+ProBowl <- ProBowl[!(Pos %in% c('CB/ST','RB/RS','RS','WR/RS','LG','LT','OG','RET','RG','RS','RT'))]
+
+ProBowl$Pos <- ifelse(ProBowl$Player %in% c("Tashaun Gipson", "Tyrann Mathieu", "Jamal Adams", "Minkah Fitzpatrick", "Harrison Smith", "Eddie Jackson", "Budda Baker"), 'S', ProBowl$Pos)
+ProBowl$Pos <- ifelse(ProBowl$Pos == 'DB', 'CB', ProBowl$Pos)
+ProBowl$Pos <- ifelse(ProBowl$Pos == 'SS', 'S', ProBowl$Pos)
+ProBowl$Pos <- ifelse(ProBowl$Pos == 'NT', 'DT', ProBowl$Pos)
+ProBowl$Pos <- ifelse(ProBowl$Pos == 'FS', 'S', ProBowl$Pos)
+ProBowl$Pos <- ifelse(ProBowl$Pos %in% c('ILB', 'MLB'), 'LB', ProBowl$Pos)
+
+ProBowl$Pos <- ifelse(ProBowl$Year == 2012 & ProBowl$Player %in% c("Von Miller", "Aldon Smith", "DeMarcus Ware", "Clay Matthews", "Robert Mathis", "Tamba Hali"), 'LB', ProBowl$Pos)
+ProBowl$Pos <- ifelse(ProBowl$Year == 2013 & ProBowl$Player %in% c("John Abraham", "Justin Houston", "Robert Mathis", "Tamba Hali", "Ahmad Brooks", "Terrell Suggs"), 'LB', ProBowl$Pos)
+ProBowl$Pos <- ifelse(ProBowl$Year == 2014 & ProBowl$Player %in% c("Von Miller", "Elvis Dumervil", "Connor Barwin", "Clay Matthews", "Tamba Hali"), 'LB', ProBowl$Pos)
+ProBowl$Pos <- ifelse(ProBowl$Year == 2015 & ProBowl$Player %in% c("Thomas Davis", "DeMarcus Ware", "Julius Peppers", "Tamba Hali"), 'LB', ProBowl$Pos)
+ProBowl$Pos <- ifelse(ProBowl$Year == 2016 & ProBowl$Player %in% c("Von Miller", "Lorenzo Alexander", "K.J. Wright", "Thomas Davis", "Brian Orakpo"), 'LB', ProBowl$Pos)
+ProBowl[Player == "Vic Beasley" & Year == 2016]$Pos <- 'LB'
+ProBowl[Player == "Terrell Suggs" & Year == 2017]$Pos <- 'LB'
+ProBowl[Player == "Jadeveon Clowney" & Year == 2017]$Pos <- 'LB'
+ProBowl$Pos <- ifelse(ProBowl$Year == 2018 & ProBowl$Player %in% c("Von Miller", "Khalil Mack", "Ryan Kerrigan", "Jadeveon Clowney", "Dee Ford", "Anthony Barr"), 'LB', ProBowl$Pos)
+ProBowl$Pos <- ifelse(ProBowl$Year == 2019 & ProBowl$Player %in% c("Von Miller", "Matt Judon", "T.J. Watt"), 'LB', ProBowl$Pos)
+ProBowl$Pos <- ifelse(ProBowl$Year == 2020 & ProBowl$Player %in% c("T.J. Watt", "Khalil Mack", "Za'Darius Smith", "Bradley Chubb", "Jason Pierre-Paul", "Matt Judon"), 'LB', ProBowl$Pos)
+ProBowl$Pos <- ifelse(ProBowl$Year == 2021 & ProBowl$Player %in% c("T.J. Watt", "Robert Quinn", "Chandler Jones", "Joey Bosa", "Shaquil Barrett", "Matt Judon"), 'LB', ProBowl$Pos)
+ProBowl$Pos <- ifelse(ProBowl$Year == 2022 & ProBowl$Player %in% c("T.J. Watt", "Micah Parsons", "Haason Reddick", "Za'Darius Smith", "Khalil Mack", "Matt Judon"), 'LB', ProBowl$Pos)
+
+ProBowl[Pos %in% c('QB', 'RB', 'WR', 'TE') & Solo != 0]$Solo <- 0
+ProBowl <- ProBowl[!(Player %in% c('Matthew Slater', 'Kyle Juszczyk', 'C.J. Ham', 'Devin Hester'))]
+ProBowl[Player == 'Ben Roethlisberger']$RecYds <- 0
+ProBowl[Player == 'Keenan Allen']$DefInt <- 0
+
+# Combine data sets and fix various positions -----------------------------
+
+players <- Pass %>% full_join(Rush, by = c('Player', 'Tm', 'Pos', 'Year', 'G', 'GS')) %>% full_join(Rec, by = c('Player', 'Tm', 'Pos', 'Year', 'G', 'GS')) %>% full_join(Def, by = c('Player', 'Tm', 'Pos', 'Year', 'G', 'GS'))
+players[is.na(players)] <- 0
+
+players <- players %>% data.table() %>% as_tibble() %>% as.data.table()
+
+players[Player == 'Elvis Dumervil' & Year == 2012]$Pos <- 'DE'
+players[Player == 'Elvis Dumervil' & Year == 2014]$Pos <- 'LB'
+players[Player == 'Justin Smith']$Pos <- 'DT'
+players[Player == 'Haloti Ngata']$Pos <- 'DT'
+players[Player == 'Muhammad Wilkerson' & Year == '2015']$Pos <- 'DT'
+players[Player == 'Derrick Henry ']$Player <- 'Derrick Henry'
+players[Player == 'Robert Quinn' & Year == 2021]$Pos <- 'LB'
+players[Player == 'Cameron Heyward' & Year == 2019]$Pos <- 'DE'
+players[Player == 'Cameron Heyward' & Year == 2021]$Pos <- 'DT'
+players[Player == 'Kyler Murray' & Year == 2021]$RecYds <- 7
+players[Player == 'Calais Campbell' & Year == 2015]$Pos <- 'DT'
+players[Player == 'Calais Campbell' & Year == 2020]$Pos <- 'DT'
+players[Player == 'Jurrell Casey']$Pos <- 'DT'
+players[Player == 'Fletcher Cox']$Pos <- 'DT'
+players[Player == 'Kyle Williams' & Year == 2016]$Pos <- 'DT'
+players[Player == 'Aaron Donald']$Pos <- 'DT'
+players <- rbind(players, ProBowl[Player == 'Fletcher Cox' & Year == 2017])
+players[Player == 'Khalil Mack' & Year == 2017]$Pos <- 'LB'
+players[Player == 'Akiem Hicks' & Year == 2018]$Pos <- 'DT'
+players[Player == 'Josh Allen' & Tm == 'JAX' & Year == 2019]$Pos <- 'DE'
+
+# Separate Pro Bowl and non-Pro Bowl players ------------------------------
+
+ProBowl[, ProBowler := 1]
+noprobowl <- players %>% anti_join(ProBowl)
+noprobowl[, ProBowler := 0]
+
+# Recombine players data set ----------------------------------------------
+
+players <- noprobowl %>% full_join(ProBowl)
+
+probowl_multinom <- multinom(ProBowler ~ Pos + G + GS + Cmp + PassAtt + PassYds + PassTD + PassInt + RushAtt + RushYds + RushTD + Rec + RecYds + RecTD + DefInt + Sacks + Solo, data = players)
+probowl_step <- step(probowl_multinom, trace = F, direction = 'both')
+players[, probowl_prob := round(predict(probowl_step, players, 'probs'), 3)]
+```
+## Example
+
+Each player in the data set is assigned either a 0 or 1 which determines whether or not they made the Pro Bowl during that specific season. If you wanted to know the original six quarterback selections for the 2014 season, the output would look like this.
+
+```{r}
+players %>% filter(Pos == 'QB' & Year == 2014 & ProBowler == 1)
+```
+
+As you can see above, Aaron Rodgers was given a 99.7% chance to make the Pro Bowl based on the model. However, Tom Brady was selected with only a 20.5% chance to make it. 
+
+We can see who the model thought was more deserving of a Pro Bowl bid below.
+
+```{r}
+players %>% filter(Pos == 'QB' & Year == 2014) %>% arrange(desc(probowl_prob)) %>% head(6)
+```
+
+Russell Wilson, clearly helped out by his stellar rushing stats on the year, was given a 82.5% chance to be selected. The model correctly predicted the other five Pro Bowl quarterbacks, but thought that Tom Brady should've been swapped for Wilson this year.
+
+## Limitations
+
+Unfortunately, this model comes with a few notable drawbacks that one must not ignore.
+
+1. The model does a very poor job of predicting Pro Bowl berths for defensive backs. Because interceptions are the only true statistic that the model has at its disposal, it essentially makes its decision of whether a cornerback or safety should be in the Pro Bowl based of that. Another variable like pass breakups, QBR allowed, or completion percentage when targeted would most likely be beneficial.
+
+2. Conferences are not listed as variables. Excluding 2012-2015 (when players were drafted by NFL legends), the Pro Bowl teams are always separated by AFC and NFC. Just because the top six players in a certain position have the highest probability to be selected doesn't mean there will be room for them. Because the same number of players from the same position are chosen from each conference, some deserving players might be left out.
+
+3. 
