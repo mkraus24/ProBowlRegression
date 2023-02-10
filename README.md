@@ -10,3 +10,7 @@ It's that time of year again. The Pro Bowl (Games) rosters have been announced a
 2. Positions such as offensive linemen and special teams players are not included.
 3. Only the original Pro Bowl selections are used. Replacements are labeled as not selected.
 4. All data is from Pro Football Reference.
+
+## Full Project
+
+The full write-up with an example can be found at https://rpubs.com/mkraus/1001425.  
